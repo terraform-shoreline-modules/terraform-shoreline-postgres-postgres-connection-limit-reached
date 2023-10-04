@@ -1,0 +1,110 @@
+{
+  "name": "postgres_connection_limit_reached",
+  "description": "This incident type occurs when the maximum number of connections allowed to a Postgres database has been reached. This prevents new connections from being established and can result in errors or downtime. It is important to monitor connection usage and adjust the maximum connection limit as needed to prevent this issue from occurring.",
+  "params": [
+    {
+      "name": "DESIRED_MAXIMUM_CONNECTIONS",
+      "value": ""
+    },
+    {
+      "name": "VERSION",
+      "value": ""
+    },
+    {
+      "name": "DATABASE_NAME",
+      "value": ""
+    },
+    {
+      "name": "HOST_NAME",
+      "value": ""
+    },
+    {
+      "name": "K8S_CLUSTER_NAME",
+      "value": ""
+    },
+    {
+      "name": "NAMESPACE",
+      "value": ""
+    }
+  ],
+  "cells": [
+    {
+      "name": "cell_1",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Postgres Connection Limit Reached\nThis incident type occurs when the maximum number of connections allowed to a Postgres database has been reached. This prevents new connections from being established and can result in errors or downtime. It is important to monitor connection usage and adjust the maximum connection limit as needed to prevent this issue from occurring."
+    },
+    {
+      "name": "cell_2",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check current Postgres connections"
+    },
+    {
+      "name": "cell_3",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `sudo su - postgres -c \"psql -c 'select count(*) from pg_stat_activity;'\"`"
+    },
+    {
+      "name": "cell_4",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check Postgres configuration file for connection settings"
+    },
+    {
+      "name": "cell_5",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `sudo cat /etc/postgresql/${VERSION}/main/postgresql.conf | grep 'max_connections'`"
+    },
+    {
+      "name": "cell_6",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check logs for any connection errors"
+    },
+    {
+      "name": "cell_7",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `sudo tail -n 100 /var/log/postgresql/postgresql-${VERSION}-main.log | grep -i 'connection'`"
+    },
+    {
+      "name": "cell_8",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check Postgres connection limit"
+    },
+    {
+      "name": "cell_9",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `sudo su - postgres -c \"psql -c 'show max_connections;'\"`"
+    },
+    {
+      "name": "cell_10",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Check for any idle connections and terminate them"
+    },
+    {
+      "name": "cell_11",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "(host | host_name=$HOST_NAME) union (pod | k8s_cluster_name=$K8S_CLUSTER_NAME | namespace=$NAMESPACE) | `sudo su - postgres -c \"psql -c 'SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = ${DATABASE_NAME} AND pid <> pg_backend_pid();'\"`"
+    },
+    {
+      "name": "cell_12",
+      "type": "MARKDOWN",
+      "enabled": true,
+      "content": "## Increase the maximum number of connections allowed by the Postgres database. This can be done in the postgresql.conf file by modifying the max_connections parameter."
+    },
+    {
+      "name": "cell_13",
+      "type": "OP_LANG",
+      "enabled": true,
+      "content": "host | host_name=$HOST_NAME | invoke_set_max_connections($DESIRED_MAXIMUM_CONNECTIONS, $VERSION)"
+    }
+  ]
+}
